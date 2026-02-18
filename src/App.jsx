@@ -25,7 +25,7 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <AuthContextProvider>
-      <BrowserRouter>
+      <BrowserRouter basename='/'>
         <Routes>
           <Route path="/">
             {/* The Login/Signup Page */}

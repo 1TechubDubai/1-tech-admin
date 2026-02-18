@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Authcontext } from "../contextProvider.jsx";
 import { auth } from "../firebaseConfig";
@@ -9,15 +9,23 @@ import {
   Users, 
   LogOut, 
   User as UserIcon,
-  ChevronDown 
+  ChevronDown,
+  Menu,
+  X 
 } from "lucide-react";
-import logo from "../assets/logo.svg"; // Ensure you have a logo image at this path
+import logo from "../assets/logo.svg";
 
 const Navbar = () => {
   const { currentUser } = useContext(Authcontext);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -37,26 +45,26 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="fixed w-full left-0 top-0 z-50 transparent backdrop-blur-xl border-b border-cyan-500/20 px-6 py-3">
+    <nav className="fixed w-full left-0 top-0 z-[100] bg-black/60 backdrop-blur-xl border-b border-cyan-500/20 px-4 md:px-6 py-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
         {/* Logo Section */}
-        <Link to="/" className="flex items-center gap-2 group">
-            <img src={logo} alt="1TechHub Logo" className="w-25 h-8 px-2" />
-          <span className="text-white font-bold tracking-widest text-lg hidden md:block">
-            ADMIN<span className="text-cyan-500">PORTAL</span>
+        <Link to="/" className="flex items-center gap-2 group shrink-0">
+          <img src={logo} alt="1TechHub Logo" className="w-20 md:w-25 h-8 object-contain" />
+          <span className="text-white font-black tracking-tighter text-lg hidden lg:block uppercase">
+            Admin<span className="text-cyan-500">Portal</span>
           </span>
         </Link>
 
-        {/* Navigation Links */}
+        {/* Desktop Navigation Links */}
         <div className="hidden md:flex items-center bg-slate-900/50 rounded-full px-2 py-1 border border-slate-800">
           {navLinks.map((link) => (
             <Link
               key={link.path}
               to={link.path}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
                 isActive(link.path)
-                  ? "bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]"
+                  ? "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)]"
                   : "text-gray-400 hover:text-cyan-400"
               }`}
             >
@@ -66,41 +74,97 @@ const Navbar = () => {
           ))}
         </div>
 
-        {/* User Section */}
-        <div className="relative">
-          <button 
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-3 bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 rounded-full pl-2 pr-4 py-1.5 transition-all"
-          >
-            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
-              <UserIcon className="w-5 h-5" />
-            </div>
-            <div className="hidden sm:block text-left">
-              <p className="text-[10px] text-gray-500 uppercase tracking-tighter">Authenticated as</p>
-              <p className="text-xs text-gray-200 font-medium truncate max-w-[120px]">
-                {currentUser?.email}
-              </p>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* Dropdown Menu */}
-          {dropdownOpen && (
-            <div className="absolute right-0 mt-3 w-56 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 animate-in fade-in slide-in-from-top-2">
-              <div className="px-4 py-3 border-b border-slate-800 mb-2">
-                <p className="text-xs text-gray-500 italic">Connected session</p>
-                <p className="text-sm text-cyan-400 truncate">{currentUser?.email}</p>
+        {/* User Section & Mobile Toggle */}
+        <div className="flex items-center gap-3">
+          {/* User Profile - Desktop & Tablet */}
+          <div className="relative hidden sm:block">
+            <button 
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-3 bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 rounded-full pl-2 pr-4 py-1.5 transition-all"
+            >
+              <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
+                <UserIcon className="w-4 h-4" />
               </div>
-              
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors text-sm font-medium"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
+              <div className="text-left">
+                <p className="text-[10px] text-gray-500 uppercase font-black leading-none">Admin</p>
+                <p className="text-[11px] text-gray-200 font-bold truncate max-w-[100px]">
+                  {currentUser?.email?.split('@')[0]}
+                </p>
+              </div>
+              <ChevronDown className={`w-3 h-3 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Desktop Dropdown */}
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-3 w-64 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 animate-in fade-in slide-in-from-top-2">
+                <div className="px-4 py-3 border-b border-slate-800 mb-2">
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Session</p>
+                  <p className="text-sm text-cyan-400 truncate font-medium">{currentUser?.email}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-cyan-400 hover:bg-slate-800 transition-all"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Navigation Overlay */}
+      <div className={`
+        fixed inset-0 top-[65px] z-40 md:hidden transition-all duration-300 ease-in-out
+        ${mobileMenuOpen ? 'visible' : 'opacity-0 invisible pointer-events-none'}
+      `}>
+        <div className="flex flex-col p-6 space-y-4 bg-slate-900 border border-slate-800 rounded-2xl mx-4 mt-2">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2">Navigation</p>
+          {navLinks.map((link) => (
+            <Link
+              key={link.path}
+              to={link.path}
+              className={`flex items-center gap-4 p-4 rounded-2xl text-sm font-bold uppercase tracking-widest transition-all ${
+                isActive(link.path)
+                  ? "bg-cyan-500/10 border border-cyan-500/40 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.1)]"
+                  : "bg-slate-900/50 border border-slate-800 text-gray-400"
+              }`}
+            >
+              <span className={isActive(link.path) ? "text-cyan-400" : "text-gray-500"}>
+                {link.icon}
+              </span>
+              {link.name}
+            </Link>
+          ))}
+
+          <div className="pt-8 mt-4 border-t border-slate-800/50">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Account</p>
+            <div className="flex items-center gap-4 p-4 bg-slate-900/50 border border-slate-800 rounded-2xl mb-4">
+              <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                <UserIcon size={20} />
+              </div>
+              <div className="truncate">
+                <p className="text-xs text-white font-bold truncate">{currentUser?.email}</p>
+                <p className="text-[10px] text-gray-500 uppercase">System Administrator</p>
+              </div>
             </div>
-          )}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 font-bold uppercase tracking-widest text-xs"
+            >
+              <LogOut size={18} />
+              Terminte Session
+            </button>
+          </div>
         </div>
       </div>
     </nav>
