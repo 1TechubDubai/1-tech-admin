@@ -164,11 +164,11 @@ const MessagesPage = () => {
             </div>
             
             <select 
-              className="bg-slate-900/50 border border-slate-800 rounded-xl py-3 px-4 text-sm focus:border-cyan-500 outline-none cursor-pointer"
+              className="bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-4 pr-3 text-sm focus:border-cyan-500 outline-none cursor-pointer appearance-none"
               onChange={(e) => setSortBy(e.target.value)}
             >
-              <option value="desc">Newest</option>
-              <option value="asc">Oldest</option>
+              <option value="desc">Newest ￬</option>
+              <option value="asc">Oldest ￬ </option>
             </select>
 
             <button 
