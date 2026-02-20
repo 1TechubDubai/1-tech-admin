@@ -2,34 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Target the entire scrollbar area */
+/* Hide scrollbars for all browsers */
 ::-webkit-scrollbar {
-  width: 8px;               /* Width for vertical scrollbar */
-  height: 8px;              /* Height for horizontal scrollbar */
+  display: none;
 }
 
-/* Make the track (background) completely transparent */
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Style the draggable thumb */
-::-webkit-scrollbar-thumb {
-  background: rgba(6, 182, 212, 0.2); /* Low opacity Cyan (Tailwind cyan-500) */
-  border-radius: 100px;               /* Fully rounded edges */
-  border: 2px solid transparent;      /* Adds padding around the thumb */
-  background-clip: content-box;       /* Ensures the border stays transparent */
-  transition: background 0.3s ease;
-}
-
-/* Make the thumb more visible on hover */
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(6, 182, 212, 0.5); /* Higher opacity on hover */
-  background-clip: content-box;
-}
-
-/* For Firefox (Limited customization, but keeps it minimal) */
+/* For Firefox */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(6, 182, 212, 0.2) transparent;
+  scrollbar-width: none;
 }
