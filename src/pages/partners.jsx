@@ -244,7 +244,7 @@ const PartnersPage = () => {
             onSubmit={handleSubmit} 
             className="bg-slate-900 border border-cyan-500/30 w-full max-w-2xl max-h-[95vh] overflow-y-auto rounded-2xl sm:rounded-3xl lg:rounded-[3rem] p-5 sm:p-8 lg:p-12 shadow-2xl relative my-auto"
           >
-            <div className="flex justify-between items-start gap-4 mb-6 sm:mb-10 sticky top-0 bg-slate-900 pb-4 -mx-5 sm:-mx-8 lg:-mx-12 px-5 sm:px-8 lg:px-12">
+            <div className="flex justify-between items-start gap-4 mb-6 sm:mb-10 bg-slate-900 pb-4 -mx-5 sm:-mx-8 lg:-mx-12 px-5 sm:px-8 lg:px-12">
               <div>
                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tighter">{editingId ? 'Edit Profile' : 'New Identity'}</h2>
                 <p className="text-slate-500 text-[9px] sm:text-xs font-bold uppercase mt-1 tracking-widest">Partner Configuration</p>
