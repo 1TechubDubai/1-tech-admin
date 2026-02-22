@@ -23,7 +23,7 @@ const MessagesPage = () => {
   const allAvailableServices = [
     'Intelligent Systems', 'Generative AI', 'Machine Learning', 
     'Computer Vision', 'NLP Solutions', 'Data Engineering', 
-    'Strategic Consulting', 'Voice AI'
+    'Strategic Consulting', 'Voice AI', 'Partner Integration'
   ];
 
   useEffect(() => {

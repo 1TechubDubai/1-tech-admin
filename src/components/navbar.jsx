@@ -11,18 +11,19 @@ import {
   User as UserIcon,
   ChevronDown,
   Menu,
-  X 
+  X,
+  Layers // Added for Member link
 } from "lucide-react";
 import logo from "../assets/logo.svg";
 
 const Navbar = () => {
-  const { currentUser } = useContext(Authcontext);
+  // 1. Pull userDetails from context to get the role
+  const { currentUser, userDetails } = useContext(Authcontext);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
@@ -36,11 +37,20 @@ const Navbar = () => {
     }
   };
 
-  const navLinks = [
-    { name: "IAM", path: "/", icon: <ShieldCheck className="w-4 h-4" /> },
-    { name: "Messages", path: "/messages", icon: <MessageSquare className="w-4 h-4" /> },
-    { name: "Partners", path: "/partners", icon: <Users className="w-4 h-4" /> },
-  ];
+  // 2. Check if the user is an Admin or Lead
+  const isPrivileged = userDetails?.role === "Admin" || userDetails?.role === "Lead";
+
+  // 3. Conditionally define navigation links based on role
+  const navLinks = isPrivileged 
+    ? [
+        { name: "IAM", path: "/", icon: <ShieldCheck className="w-4 h-4" /> },
+        { name: "Messages", path: "/messages", icon: <MessageSquare className="w-4 h-4" /> },
+        { name: "Partners", path: "/partners", icon: <Users className="w-4 h-4" /> },
+      ]
+    : [
+        // Give standard members a link to their deployment form
+        { name: "My Node", path: "/submit-details", icon: <Layers className="w-4 h-4" /> }
+      ];
 
   const isActive = (path) => location.pathname === path;
 
@@ -49,10 +59,10 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
         {/* Logo Section */}
-        <Link to="/" className="flex items-center gap-2 group shrink-0">
+        <Link to={isPrivileged ? "/" : "/submit-details"} className="flex items-center gap-2 group shrink-0">
           <img src={logo} alt="1TechHub Logo" className="w-20 md:w-25 h-8 object-contain" />
           <span className="text-white font-black tracking-tighter text-lg hidden lg:block uppercase">
-            Admin<span className="text-cyan-500">Portal</span>
+            {isPrivileged ? "Admin" : "Partner"}<span className="text-cyan-500">Portal</span>
           </span>
         </Link>
 
@@ -86,7 +96,10 @@ const Navbar = () => {
                 <UserIcon className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <p className="text-[10px] text-gray-500 uppercase font-black leading-none">Admin</p>
+                {/* Dynamically show their role instead of hardcoding "Admin" */}
+                <p className="text-[10px] text-gray-500 uppercase font-black leading-none">
+                  {userDetails?.role || "User"}
+                </p>
                 <p className="text-[11px] text-gray-200 font-bold truncate max-w-[100px]">
                   {currentUser?.email?.split('@')[0]}
                 </p>
@@ -100,6 +113,9 @@ const Navbar = () => {
                 <div className="px-4 py-3 border-b border-slate-800 mb-2">
                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Session</p>
                   <p className="text-sm text-cyan-400 truncate font-medium">{currentUser?.email}</p>
+                  <p className="text-[10px] text-slate-500 truncate mt-1">
+                    Org: {userDetails?.organization || "N/A"}
+                  </p>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -154,7 +170,9 @@ const Navbar = () => {
               </div>
               <div className="truncate">
                 <p className="text-xs text-white font-bold truncate">{currentUser?.email}</p>
-                <p className="text-[10px] text-gray-500 uppercase">System Administrator</p>
+                <p className="text-[10px] text-gray-500 uppercase font-black">
+                  {isPrivileged ? 'System Administrator' : 'Partner Representative'}
+                </p>
               </div>
             </div>
             <button
@@ -162,7 +180,7 @@ const Navbar = () => {
               className="w-full flex items-center justify-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 font-bold uppercase tracking-widest text-xs"
             >
               <LogOut size={18} />
-              Terminte Session
+              Terminate Session
             </button>
           </div>
         </div>

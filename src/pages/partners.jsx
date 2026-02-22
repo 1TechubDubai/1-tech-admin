@@ -1,348 +1,377 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { db, storage } from "../firebaseConfig.js";
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { 
+  collection, onSnapshot, addDoc, updateDoc, deleteDoc, 
+  doc, serverTimestamp, query, orderBy 
+} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Authcontext } from "../contextProvider.jsx";
 import { 
-  Plus, X, Image as ImageIcon, Link as LinkIcon, 
-  Trash2, Edit3, ArrowRight
-} from "lucide-react";
-import { 
-  // Original Icons
-  MapPin, Activity, Truck, BarChart3, Box, Globe, Shield, Lock, MessageSquare, Video, Cloud, Search, Filter, Layers,
-  // Navigation & UI
-  Home, Settings, Menu, Bell, ChevronRight, ChevronLeft, MoreVertical, ExternalLink, RefreshCw, PlusCircle,
-  // User & Security
-  User, UserPlus, UserCheck, UserX, Fingerprint, Key, Eye, EyeOff, ShieldAlert,
-  // Actions & Business
-  Briefcase, CreditCard, DollarSign, PieChart, TrendingUp, Zap, HardDrive, Cpu, 
-  // Status & Feedback
+  Plus, X, Trash2, Edit3, Search, Layers, Activity, Globe, 
+  CheckCircle, ShieldAlert, Building2, Eye, ExternalLink, Zap,
+  MapPin, Truck, BarChart3, Box, Shield, Lock, MessageSquare, Video, Cloud, Filter,
+  Home, Settings, Menu, Bell, ChevronRight, ChevronLeft, MoreVertical, RefreshCw, PlusCircle,
+  User, UserPlus, UserCheck, UserX, Fingerprint, Key, EyeOff,
+  Briefcase, CreditCard, DollarSign, PieChart, TrendingUp, HardDrive, Cpu, 
   CheckCircle2, AlertTriangle, Info, HelpCircle, Trash, Edit, Save, Send
-} from 'lucide-react';
-
+} from "lucide-react";
 import Navbar from "../components/navbar.jsx";
 
-const iconMap = {
-  // --- Original Set ---
+// Standard iconMap for rendering the actual icons on the live grid
+const iconMap = { 
   MapPin, Activity, Truck, BarChart3, Box, Globe, Shield, Lock, MessageSquare, Video, Cloud, Search, Filter, Layers,
-
-  // --- Navigation & Core UI ---
-  Home,             // Dashboard home
-  Settings,         // Configuration
-  Menu,             // Sidebar toggle
-  Bell,             // Notifications
-  ChevronRight,     // List indicators
-  ChevronLeft,      // Back buttons
-  MoreVertical,     // Action menus
-  ExternalLink,     // Partner website links
-  RefreshCw,        // Sync/Reload data
-  PlusCircle,       // Alternative Add button
-
-  // --- User & Identity Management (IAM) ---
-  User,             // Profile
-  UserPlus,         // Registration requests
-  UserCheck,        // Approved users
-  UserX,            // Rejected users
-  Fingerprint,      // Biometric/Security
-  Key,              // Access control
-  Eye,              // View details
-  EyeOff,           // Hide details
-  ShieldAlert,      // High-priority alerts
-
-  // --- Business & Performance ---
-  Briefcase,        // Partners/Corporate
-  CreditCard,       // Billing/Subscriptions
-  DollarSign,       // Revenue
-  PieChart,         // Analytics
-  TrendingUp,       // Growth metrics
-  Zap,              // Automation/Features
-  HardDrive,        // Storage/Database
-  Cpu,              // Processing/AI
-
-  // --- Status & CRUD Actions ---
-  CheckCircle2,     // Success states
-  AlertTriangle,    // Warnings
-  Info,             // Information tooltips
-  HelpCircle,       // Support/FAQ
-  Trash,            // Delete actions
-  Edit,             // Modify existing entries
-  Save,             // Commit changes
-  Send              // Message/Reply actions
+  Home, Settings, Menu, Bell, ChevronRight, ChevronLeft, MoreVertical, ExternalLink, RefreshCw, PlusCircle,
+  User, UserPlus, UserCheck, UserX, Fingerprint, Key, Eye, EyeOff, ShieldAlert,
+  Briefcase, CreditCard, DollarSign, PieChart, TrendingUp, Zap, HardDrive, Cpu, 
+  CheckCircle2, AlertTriangle, Info, HelpCircle, Trash, Edit, Save, Send
 };
 
+// Dropdown options for the Modal form
+const iconOptions = [
+  { name: "Activity", icon: Activity },
+  { name: "Zap", icon: Zap },
+  { name: "Globe", icon: Globe },
+  { name: "Shield", icon: Shield },
+  { name: "Cloud", icon: Cloud },
+  { name: "Cpu", icon: Cpu },
+  { name: "Layers", icon: Layers }
+];
+
 const PartnersPage = () => {
-  const [partners, setPartners] = useState([]);
+  const { userDetails } = useContext(Authcontext);
+  const [nodes, setNodes] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [view, setView] = useState("live"); // 'live' or 'staging'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Form State
+  // Form State optimized for Capability Nodes
   const [formData, setFormData] = useState({
     name: "", sub: "", desc: "", link: "", theme: "#06b6d4",
-    features: [{ label: "", icon: "Activity" }]
+    organization: "Internal Ops",
+    status: "active",
+    features: [{ label: "", icon: "Activity" }],
+    image: ""
   });
   const [imageFile, setImageFile] = useState(null);
 
+  // Fetch all nodes
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "partners"), (snap) => {
-      setPartners(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const q = query(collection(db, "service_listings"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snap) => {
+      setNodes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
     return () => unsub();
   }, []);
 
-  const handleUpload = async () => {
-    if (!imageFile) return formData.image || "";
-    const storageRef = ref(storage, `partners/${Date.now()}_${imageFile.name}`);
-    await uploadBytes(storageRef, imageFile);
-    return await getDownloadURL(storageRef);
+  // Admin Actions
+  const handleApprove = async (id) => {
+    await updateDoc(doc(db, "service_listings", id), { status: "active", updatedAt: serverTimestamp() });
   };
 
+  const handleDisable = async (id, currentStatus) => {
+    const nextStatus = currentStatus === "active" ? "disabled" : "active";
+    await updateDoc(doc(db, "service_listings", id), { status: nextStatus, updatedAt: serverTimestamp() });
+  };
+
+  // Form Array Handlers
+  const addFeature = () => {
+    setFormData({ ...formData, features: [...formData.features, { label: "", icon: "Activity" }] });
+  };
+
+  const removeFeature = (index) => {
+    const newFeatures = formData.features.filter((_, i) => i !== index);
+    setFormData({ ...formData, features: newFeatures });
+  };
+
+  // Form Submission Logic
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const imageUrl = await handleUpload();
-      const payload = { ...formData, image: imageUrl, updatedAt: serverTimestamp() };
+      let imageUrl = formData.image || "";
+      if (imageFile) {
+        const storageRef = ref(storage, `service_assets/${Date.now()}_${imageFile.name}`);
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
+      }
+
+      const payload = {
+        name: formData.name,
+        sub: formData.sub,
+        desc: formData.desc,
+        link: formData.link,
+        theme: formData.theme,
+        features: formData.features,
+        image: imageUrl,
+        organization: formData.organization || "Internal Ops",
+        submittedBy: userDetails?.email || "admin@system.io",
+        updatedAt: serverTimestamp(),
+      };
 
       if (editingId) {
-        await updateDoc(doc(db, "partners", editingId), payload);
+        await updateDoc(doc(db, "service_listings", editingId), payload);
       } else {
-        await addDoc(collection(db, "partners"), { ...payload, createdAt: serverTimestamp() });
+        // New internal deployments default to 'active' immediately
+        await addDoc(collection(db, "service_listings"), { 
+          ...payload, 
+          status: "active",
+          createdAt: serverTimestamp() 
+        });
       }
       resetForm();
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+      alert("Error deploying node.");
+    }
     setLoading(false);
   };
 
   const resetForm = () => {
-    setFormData({ name: "", sub: "", desc: "", link: "", theme: "#06b6d4", features: [{ label: "", icon: "Activity" }] });
-    setImageFile(null);
-    setEditingId(null);
+    setFormData({ 
+      name: "", sub: "", desc: "", link: "", theme: "#06b6d4", 
+      organization: "Internal Ops", status: "active", features: [{ label: "", icon: "Activity" }], image: "" 
+    });
+    setImageFile(null); 
+    setEditingId(null); 
     setIsModalOpen(false);
   };
 
-  const addFeature = () => setFormData({...formData, features: [...formData.features, { label: "", icon: "Activity" }]});
-  
-  const removeFeature = (index) => {
-    const newFeats = formData.features.filter((_, i) => i !== index);
-    setFormData({...formData, features: newFeats});
-  };
-
-  const filteredPartners = partners.filter(p => 
-    p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.sub?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredNodes = nodes.filter(n => {
+    const matchesSearch = n.name?.toLowerCase().includes(searchTerm.toLowerCase()) || n.organization?.toLowerCase().includes(searchTerm.toLowerCase());
+    return view === "live" ? (n.status === "active" || n.status === "disabled") && matchesSearch : n.status === "pending" && matchesSearch;
+  });
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white selection:bg-cyan-500/30 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-slate-900 via-black to-black">
+    <div className="min-h-screen bg-[#020617] text-white bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-slate-900 via-black to-black">
       <Navbar />
       
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-20">
+      <div className="max-w-7xl mx-auto px-6 pt-32 pb-20">
         
-        {/* --- STATS DASHBOARD --- */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
-          <div className="bg-slate-900/40 border border-slate-800/50 p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] backdrop-blur-md">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="p-2 sm:p-3 bg-cyan-500/10 rounded-xl sm:rounded-2xl text-cyan-400"><Layers size={20} className="sm:w-6 sm:h-6"/></div>
-              <div>
-                <p className="text-[8px] sm:text-[10px] uppercase font-black text-slate-500 tracking-widest">Active Partners</p>
-                <h4 className="text-2xl sm:text-3xl font-bold">{partners.length}</h4>
-              </div>
-            </div>
+        {/* --- TOGGLE TABS --- */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-12">
+          <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800">
+            <button 
+              onClick={() => setView("live")}
+              className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${view === 'live' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/40' : 'text-slate-500 hover:text-white'}`}
+            >
+              Live Nodes
+            </button>
+            <button 
+              onClick={() => setView("staging")}
+              className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative ${view === 'staging' ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/40' : 'text-slate-500 hover:text-white'}`}
+            >
+              Staging Queue
+              {nodes.filter(n => n.status === 'pending').length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-[10px] rounded-full flex items-center justify-center animate-bounce border-2 border-black">
+                  {nodes.filter(n => n.status === 'pending').length}
+                </span>
+              )}
+            </button>
           </div>
-          <div className="sm:col-span-1 lg:col-span-2 bg-slate-900/40 border border-slate-800/50 p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] flex flex-col sm:flex-row items-center gap-3 sm:gap-0">
-            <div className="flex-1 relative w-full">
-              <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-slate-500 sm:w-[18px] sm:h-[18px]" size={16} />
+
+          <div className="flex gap-4 w-full md:w-auto">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input 
-                type="text" 
-                placeholder="Search partners..." 
-                className="w-full bg-black/40 border border-slate-800 rounded-xl sm:rounded-2xl py-2.5 sm:py-3 pl-10 sm:pl-12 pr-4 text-sm focus:border-cyan-500 outline-none transition-all"
+                type="text" placeholder="Search capabilities..." 
+                className="w-full bg-black border border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-xs focus:border-cyan-500 outline-none transition-all"
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <button 
-              onClick={() => setIsModalOpen(true)}
-              className="hidden sm:flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-xs tracking-widest transition-all shadow-lg shadow-cyan-900/20 ml-auto whitespace-nowrap"
+              onClick={() => { resetForm(); setIsModalOpen(true); }}
+              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-2xl font-black text-xs tracking-widest flex items-center gap-2 whitespace-nowrap shadow-lg shadow-cyan-900/40"
             >
-              <Plus size={16} className="sm:w-[18px] sm:h-[18px]" /> ADD NEW
+              <Plus size={16}/> DEPLOY INTERNAL
             </button>
           </div>
         </div>
 
-        {/* Header */}
-        <div className="mb-8 sm:mb-12 flex items-end justify-between gap-4">
-          <div className="flex-1">
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent uppercase tracking-tighter leading-tight">
-              Partners Suite
-            </h1>
-            <p className="text-slate-400 mt-1 sm:mt-2 text-xs sm:text-sm">Design and deploy ecosystem profiles across the live platform.</p>
-          </div>
-          <button onClick={() => setIsModalOpen(true)} className="sm:hidden flex-shrink-0 p-3 sm:p-4 bg-cyan-600 hover:bg-cyan-500 rounded-xl sm:rounded-2xl shadow-lg transition-all"><Plus size={20}/></button>
-        </div>
+        {/* --- NODE LISTING --- */}
+        <div className="space-y-4">
+          {filteredNodes.length > 0 ? filteredNodes.map((node) => (
+            <div key={node.id} className={`group bg-slate-900/20 border ${node.status === 'disabled' ? 'border-red-500/20 opacity-60' : 'border-slate-800/60'} rounded-[2.5rem] p-6 lg:p-8 flex flex-col lg:flex-row items-center gap-8 transition-all hover:border-cyan-500/30`}>
+              
+              <div className="w-full lg:w-48 h-32 bg-black rounded-3xl border border-slate-800 flex items-center justify-center p-4 relative overflow-hidden">
+                 <div className="absolute inset-0 opacity-5" style={{ background: `radial-gradient(circle, ${node.theme} 0%, transparent 70%)` }}></div>
+                 {node.image ? (
+                   <img src={node.image} alt="" className="max-h-full object-contain relative z-10 grayscale group-hover:grayscale-0 transition-all duration-500" />
+                 ) : (
+                   <Layers size={32} className="text-slate-700 relative z-10" />
+                 )}
+              </div>
 
-        {/* Partners Grid */}
-        <div className="space-y-6 sm:space-y-8">
-          {filteredPartners.map((partner) => (
-            <div 
-              key={partner.id} 
-              className="relative group border border-slate-800/60 bg-slate-900/20 rounded-xl sm:rounded-2xl lg:rounded-[2.5rem] overflow-hidden grid grid-cols-1 lg:grid-cols-2 transition-all duration-500 hover:border-cyan-500/30 hover:shadow-[0_0_40px_rgba(6,182,212,0.05)]"
-            >
-              <div className="p-4 sm:p-8 lg:p-12">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold uppercase tracking-tight break-words" style={{ color: partner.theme }}>{partner.name}</h2>
-                    <p className="text-slate-400 font-medium italic text-xs sm:text-sm mt-1">{partner.sub}</p>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => { setEditingId(partner.id); setFormData(partner); setIsModalOpen(true); }} className="p-2 sm:p-3 bg-slate-800/50 border border-slate-700 rounded-lg sm:rounded-xl hover:text-cyan-400 transition-colors"><Edit3 size={16} className="sm:w-[18px] sm:h-[18px]"/></button>
-                    <button onClick={() => deleteDoc(doc(db, "partners", partner.id))} className="p-2 sm:p-3 bg-slate-800/50 border border-slate-700 rounded-lg sm:rounded-xl hover:text-red-500 transition-colors"><Trash2 size={16} className="sm:w-[18px] sm:h-[18px]"/></button>
-                  </div>
+              <div className="flex-1 text-center lg:text-left">
+                <div className="flex flex-col lg:flex-row items-center gap-3 mb-2">
+                  <h3 className="text-2xl font-bold uppercase tracking-tight" style={{ color: node.theme }}>{node.name}</h3>
+                  <span className="text-[10px] px-3 py-1 bg-slate-800 rounded-full text-slate-400 font-mono flex items-center gap-2">
+                    <Building2 size={10}/> {node.organization}
+                  </span>
                 </div>
+                <p className="text-slate-400 text-sm italic mb-4">{node.sub}</p>
                 
-                <p className="text-slate-300 leading-relaxed mb-6 sm:mb-8 text-xs sm:text-sm lg:text-base">{partner.desc}</p>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-6 sm:mb-10">
-                  {partner.features?.map((f, i) => {
-                    const Icon = iconMap[f.icon] || Activity;
-                    return (
-                      <div key={i} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-black/40 border border-slate-800/40 rounded-lg sm:rounded-2xl group/feat hover:border-slate-700 transition-colors">
-                        <Icon size={14} className="sm:w-4 sm:h-4" style={{ color: partner.theme, flexShrink: 0 }} />
-                        <span className="text-[10px] sm:text-xs font-semibold text-slate-400 group-hover/feat:text-slate-200 transition-colors truncate">{f.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => window.open(partner.link)} 
-                    className="flex-1 sm:flex-none px-6 sm:px-10 py-3 sm:py-4 rounded-lg sm:rounded-2xl font-black text-xs tracking-widest text-white transition-all hover:scale-105"
-                    style={{ backgroundColor: partner.theme, boxShadow: `0 0 20px ${partner.theme}30` }}
-                  >
-                    VISIT PLATFORM
-                  </button>
+                <div className="flex flex-wrap justify-center lg:justify-start gap-2">
+                   {node.features?.map((f, i) => (
+                     <div key={i} className="px-3 py-1 bg-black/40 border border-slate-800 rounded-full text-[9px] font-black text-slate-500 flex items-center gap-2">
+                        {React.createElement(iconMap[f.icon] || Activity, { size: 10, style: { color: node.theme } })}
+                        {f.label}
+                     </div>
+                   ))}
                 </div>
               </div>
-              
-              <div className="bg-black/50 flex items-center justify-center p-6 sm:p-12 border-t lg:border-t-0 lg:border-l border-slate-800/50 relative overflow-hidden group-hover:bg-black/30 transition-colors min-h-[250px] sm:min-h-[300px]">
-                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ background: `radial-gradient(circle at center, ${partner.theme} 0%, transparent 70%)` }}></div>
-                <img 
-                  src={partner.image} 
-                  alt="" 
-                  className="max-h-48 sm:max-h-56 w-full object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700 relative z-10 px-4 sm:px-0" 
-                />
+
+              <div className="flex gap-2">
+                {view === "staging" ? (
+                  <>
+                    <button onClick={() => handleApprove(node.id)} className="px-6 py-3 bg-green-600/10 text-green-500 border border-green-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all">Authorize</button>
+                    <button onClick={() => deleteDoc(doc(db, "service_listings", node.id))} className="px-6 py-3 bg-red-600/10 text-red-500 border border-red-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">Reject</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => handleDisable(node.id, node.status)} className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest border transition-all ${node.status === 'disabled' ? 'bg-cyan-600 text-white' : 'border-slate-800 text-slate-500 hover:bg-slate-800'}`}>
+                      {node.status === 'disabled' ? 'Enable' : 'Disable'}
+                    </button>
+                    <button onClick={() => { setEditingId(node.id); setFormData(node); setIsModalOpen(true); }} className="p-3 bg-slate-800 rounded-xl hover:text-cyan-400 transition-colors"><Edit3 size={18}/></button>
+                    <button onClick={() => deleteDoc(doc(db, "service_listings", node.id))} className="p-3 bg-slate-800 rounded-xl hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                  </>
+                )}
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="py-32 text-center border-2 border-dashed border-slate-800/50 rounded-[3rem]">
+              <Zap size={40} className="mx-auto text-slate-800 mb-4 opacity-20" />
+              <p className="text-slate-600 font-mono text-[10px] uppercase tracking-[0.3em]">No Capability Nodes Found</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* --- ADMIN MODAL --- */}
+      {/* --- MODAL FOR INTERNAL ADD/EDIT --- */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/95 backdrop-blur-md animate-in fade-in overflow-y-auto">
-          <form 
-            onSubmit={handleSubmit} 
-            className="bg-slate-900 border border-cyan-500/30 w-full max-w-2xl max-h-[95vh] overflow-y-auto rounded-2xl sm:rounded-3xl lg:rounded-[3rem] p-5 sm:p-8 lg:p-12 shadow-2xl relative my-auto"
-          >
-            <div className="flex justify-between items-start gap-4 mb-6 sm:mb-10 bg-slate-900 pb-4 -mx-5 sm:-mx-8 lg:-mx-12 px-5 sm:px-8 lg:px-12">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md overflow-y-auto">
+          <form onSubmit={handleSubmit} className="bg-slate-900 border border-cyan-500/30 w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[3rem] p-6 md:p-10 space-y-8 animate-in zoom-in-95 scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-transparent">
+            
+            <div className="flex justify-between items-center border-b border-slate-800 pb-6">
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tighter">{editingId ? 'Edit Profile' : 'New Identity'}</h2>
-                <p className="text-slate-500 text-[9px] sm:text-xs font-bold uppercase mt-1 tracking-widest">Partner Configuration</p>
+                <h2 className="text-2xl font-black uppercase tracking-tighter text-white">
+                  {editingId ? 'Modify Capability Node' : 'Deploy Internal Node'}
+                </h2>
+                <p className="text-cyan-500 text-[10px] font-mono uppercase tracking-[0.2em] mt-1">
+                  Origin: {formData.organization || "Internal Ops"} // Mode: {editingId ? "OVERRIDE" : "INSERT"}
+                </p>
               </div>
-              <button type="button" onClick={resetForm} className="p-1.5 sm:p-2 hover:bg-slate-800 rounded-full transition-colors flex-shrink-0"><X size={20} className="sm:w-6 sm:h-6"/></button>
+              <button type="button" onClick={resetForm} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white">
+                <X size={24}/>
+              </button>
+            </div>
+             
+            {/* Section 1: Core Identity */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-black/20 border border-slate-800/50 p-6 rounded-[2rem]">
+              <div className="col-span-2">
+                <h3 className="text-xs font-black text-cyan-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                  <Building2 size={14}/> 01. Capability Meta
+                </h3>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Service Label</label>
+                <input required className="w-full bg-black border border-slate-800 p-4 rounded-xl outline-none focus:border-cyan-500 text-sm" placeholder="Autonomous Logistics Layer" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Sub-Terminal Tagline</label>
+                <input required className="w-full bg-black border border-slate-800 p-4 rounded-xl outline-none focus:border-cyan-500 text-sm" placeholder="Neural Optimisation Engine" value={formData.sub} onChange={e => setFormData({...formData, sub: e.target.value})} />
+              </div>
+
+              <div className="col-span-2 space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Technical Abstract</label>
+                <textarea required className="w-full bg-black border border-slate-800 p-4 rounded-xl h-24 resize-none outline-none focus:border-cyan-500 text-sm" placeholder="Detailed technical specifications..." value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:gap-6">
-              <div className="col-span-2 sm:col-span-1">
-                <label className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Entity Name</label>
-                <input required className="w-full bg-black border border-slate-800 p-2.5 sm:p-4 rounded-lg sm:rounded-2xl mt-1 sm:mt-2 text-xs sm:text-base focus:border-cyan-500 outline-none transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            {/* Section 2: Integration */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-black/20 border border-slate-800/50 p-6 rounded-[2rem]">
+              <div className="col-span-2">
+                <h3 className="text-xs font-black text-cyan-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                  <Globe size={14}/> 02. External Linkage
+                </h3>
               </div>
-              <div className="col-span-2 sm:col-span-1">
-                <label className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Accent Theme</label>
-                <div className="flex gap-2 sm:gap-3 mt-1 sm:mt-2">
-                  <input type="color" className="h-10 sm:h-14 w-16 sm:w-20 bg-black border border-slate-800 rounded-lg sm:rounded-2xl cursor-pointer p-0.5 sm:p-1" value={formData.theme} onChange={e => setFormData({...formData, theme: e.target.value})} />
-                  <input className="flex-1 bg-black border border-slate-800 p-2 sm:p-4 rounded-lg sm:rounded-2xl uppercase text-xs font-mono font-bold text-cyan-500" value={formData.theme} readOnly />
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Source URL</label>
+                <input className="w-full bg-black border border-slate-800 p-4 rounded-xl outline-none focus:border-cyan-500 text-sm" placeholder="https://terminal.io" value={formData.link} onChange={e => setFormData({...formData, link: e.target.value})} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Visual Accent</label>
+                <div className="flex gap-4">
+                  <input type="color" className="h-14 w-20 bg-black border border-slate-800 rounded-xl cursor-pointer p-1" value={formData.theme} onChange={e => setFormData({...formData, theme: e.target.value})} />
+                  <div className="flex-1 bg-black border border-slate-800 p-4 rounded-xl font-mono text-cyan-500 flex items-center uppercase text-xs">
+                    {formData.theme}
+                  </div>
                 </div>
               </div>
-              <div className="col-span-2">
-                <label className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tagline</label>
-                <input className="w-full bg-black border border-slate-800 p-2.5 sm:p-4 rounded-lg sm:rounded-2xl mt-1 sm:mt-2 text-xs sm:text-base focus:border-cyan-500 outline-none" value={formData.sub} onChange={e => setFormData({...formData, sub: e.target.value})} />
-              </div>
-              <div className="col-span-2">
-                <label className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Project Abstract</label>
-                <textarea className="w-full bg-black border border-slate-800 p-2.5 sm:p-5 rounded-lg sm:rounded-2xl mt-1 sm:mt-2 h-24 sm:h-32 resize-none text-xs sm:text-sm leading-relaxed focus:border-cyan-500 outline-none" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <label className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">External Link</label>
-                <input className="w-full bg-black border border-slate-800 p-2.5 sm:p-4 rounded-lg sm:rounded-2xl mt-1 sm:mt-2 text-xs sm:text-base focus:border-cyan-500 outline-none" value={formData.link} onChange={e => setFormData({...formData, link: e.target.value})} />
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <label className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Asset Upload</label>
-                <input type="file" className="w-full text-[8px] sm:text-[10px] text-slate-500 mt-1 sm:mt-2 file:bg-cyan-600/10 file:border-none file:text-cyan-400 file:px-3 sm:file:px-6 file:py-2 sm:file:py-3 file:rounded-lg sm:file:rounded-xl file:font-bold file:mr-2 sm:file:mr-4 file:cursor-pointer" onChange={e => setImageFile(e.target.files[0])} />
-              </div>
-            </div>
 
-            <div className="mt-8 sm:mt-12 border-t border-slate-800/50 pt-6 sm:pt-8">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6">
-                <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest">Capabilities Grid</h3>
-                <button type="button" onClick={addFeature} className="text-[9px] sm:text-[10px] font-black bg-slate-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl uppercase tracking-widest hover:bg-slate-700 transition-colors w-full sm:w-auto">+ Add Node</button>
-              </div>
-                <div className="space-y-2 sm:space-y-3">
-                {formData.features.map((feat, i) => {
-                    const SelectedIcon = iconMap[feat.icon] || iconMap["Activity"];
-
-                    return (
-                    <div key={i} className="flex items-center gap-2 sm:gap-3 animate-in slide-in-from-right-2 group flex-wrap sm:flex-nowrap">
-                        {/* Visual Icon Preview */}
-                        <div className="w-10 sm:w-12 h-10 sm:h-12 flex items-center justify-center bg-black border border-slate-800 rounded-lg sm:rounded-xl text-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.1)] group-hover:border-cyan-500/50 transition-all flex-shrink-0">
-                        <SelectedIcon size={18} className="sm:w-5 sm:h-5" />
-                        </div>
-
-                        {/* Icon Selector */}
-                        <select 
-                        className="bg-black border border-slate-800 p-2 sm:p-3 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-bold uppercase w-28 sm:w-36 outline-none focus:border-cyan-500 transition-all cursor-pointer appearance-none" 
-                        value={feat.icon} 
-                        onChange={e => {
-                            const newFeats = [...formData.features];
-                            newFeats[i].icon = e.target.value;
-                            setFormData({...formData, features: newFeats});
-                        }}
-                        >
-                        {Object.keys(iconMap).sort().map(icon => (
-                            <option key={icon} value={icon} className="bg-slate-900 text-white text-xs">
-                            {icon}
-                            </option>
-                        ))}
-                        </select>
-
-                        {/* Label Input */}
-                        <input 
-                        className="flex-1 min-w-[120px] bg-black border border-slate-800 p-2 sm:p-3 rounded-lg sm:rounded-xl text-xs outline-none focus:border-cyan-500 transition-all" 
-                        placeholder="Capability Label" 
-                        value={feat.label} 
-                        onChange={e => {
-                            const newFeats = [...formData.features];
-                            newFeats[i].label = e.target.value;
-                            setFormData({...formData, features: newFeats});
-                        }} 
-                        />
-
-                        {/* Remove Button */}
-                        <button 
-                        type="button" 
-                        onClick={() => removeFeature(i)} 
-                        className="p-2 sm:p-3 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg sm:rounded-xl transition-all flex-shrink-0"
-                        >
-                        <X size={16} className="sm:w-[18px] sm:h-[18px]"/>
-                        </button>
-                    </div>
-                    );
-                })}
+              <div className="col-span-2 space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Asset Mapping (PNG/SVG)</label>
+                <div className="border-2 border-dashed border-slate-800 p-6 rounded-xl hover:border-cyan-500/50 transition-all text-center group cursor-pointer">
+                  <input type="file" className="hidden" id="admin-asset-upload" onChange={e => setImageFile(e.target.files[0])} />
+                  <label htmlFor="admin-asset-upload" className="cursor-pointer">
+                    <p className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${imageFile ? 'text-white' : 'text-slate-500 group-hover:text-cyan-400'}`}>
+                      {imageFile ? `LINKED: ${imageFile.name}` : formData.image && editingId ? "CLICK TO REPLACE EXISTING VISUAL" : "DRAG OR CLICK TO UPLOAD SYSTEM VISUAL"}
+                    </p>
+                  </label>
                 </div>
+              </div>
             </div>
 
-            <button disabled={loading} className="w-full bg-cyan-600 hover:bg-cyan-500 py-3 sm:py-5 rounded-lg sm:rounded-2xl lg:rounded-[2rem] font-black mt-8 sm:mt-12 tracking-[0.2em] shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50 uppercase text-xs">
-              {loading ? "TRANSMITTING DATA..." : "DEPLOY PROFILE"}
+            {/* Section 3: Technical Features */}
+            <div className="bg-black/20 border border-slate-800/50 p-6 rounded-[2rem]">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xs font-black text-cyan-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <Layers size={14}/> 03. Functional Nodes
+                </h3>
+                <button type="button" onClick={addFeature} className="px-4 py-2 bg-slate-800 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all text-white">
+                  + ADD MODULE
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {formData.features?.map((feat, i) => (
+                  <div key={i} className="flex gap-4 animate-in slide-in-from-right-2">
+                    <select 
+                      className="bg-black border border-slate-800 p-4 rounded-xl text-[10px] font-bold uppercase outline-none focus:border-cyan-500 cursor-pointer text-white"
+                      value={feat.icon}
+                      onChange={e => {
+                        const newFeats = [...formData.features];
+                        newFeats[i].icon = e.target.value;
+                        setFormData({...formData, features: newFeats});
+                      }}
+                    >
+                      {iconOptions.map(opt => <option key={opt.name} value={opt.name}>{opt.name}</option>)}
+                    </select>
+                    <input 
+                      className="flex-1 bg-black border border-slate-800 p-4 rounded-xl text-xs outline-none focus:border-cyan-500 text-white" 
+                      placeholder="Module Capability"
+                      value={feat.label}
+                      onChange={e => {
+                        const newFeats = [...formData.features];
+                        newFeats[i].label = e.target.value;
+                        setFormData({...formData, features: newFeats});
+                      }}
+                    />
+                    <button type="button" onClick={() => removeFeature(i)} className="p-4 text-slate-600 hover:text-red-500 transition-colors">
+                      <X size={18}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading} className="w-full bg-cyan-600 hover:bg-cyan-500 py-6 rounded-[2rem] font-black text-[10px] tracking-[0.4em] uppercase shadow-2xl shadow-cyan-900/40 transition-all disabled:opacity-50 text-white flex justify-center items-center gap-2">
+              {loading ? "TRANSMITTING..." : (editingId ? "OVERRIDE NODE DATA" : "COMMIT INTERNAL DEPLOYMENT")}
             </button>
           </form>
         </div>
