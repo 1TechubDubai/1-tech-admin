@@ -26,13 +26,61 @@ const iconMap = {
 };
 
 const iconOptions = [
+  { name: "Plus", icon: Plus },
+  { name: "X", icon: X },
+  { name: "Trash2", icon: Trash2 },
+  { name: "Edit3", icon: Edit3 },
+  { name: "Search", icon: Search },
+  { name: "Layers", icon: Layers },
   { name: "Activity", icon: Activity },
-  { name: "Zap", icon: Zap },
   { name: "Globe", icon: Globe },
+  { name: "CheckCircle", icon: CheckCircle },
+  { name: "ShieldAlert", icon: ShieldAlert },
+  { name: "Building2", icon: Building2 },
+  { name: "Eye", icon: Eye },
+  { name: "ExternalLink", icon: ExternalLink },
+  { name: "Zap", icon: Zap },
+  { name: "MapPin", icon: MapPin },
+  { name: "Truck", icon: Truck },
+  { name: "BarChart3", icon: BarChart3 },
+  { name: "Box", icon: Box },
   { name: "Shield", icon: Shield },
+  { name: "Lock", icon: Lock },
+  { name: "MessageSquare", icon: MessageSquare },
+  { name: "Video", icon: Video },
   { name: "Cloud", icon: Cloud },
+  { name: "Filter", icon: Filter },
+  { name: "Home", icon: Home },
+  { name: "Settings", icon: Settings },
+  { name: "Menu", icon: Menu },
+  { name: "Bell", icon: Bell },
+  { name: "ChevronRight", icon: ChevronRight },
+  { name: "ChevronLeft", icon: ChevronLeft },
+  { name: "MoreVertical", icon: MoreVertical },
+  { name: "RefreshCw", icon: RefreshCw },
+  { name: "PlusCircle", icon: PlusCircle },
+  { name: "User", icon: User },
+  { name: "UserPlus", icon: UserPlus },
+  { name: "UserCheck", icon: UserCheck },
+  { name: "UserX", icon: UserX },
+  { name: "Fingerprint", icon: Fingerprint },
+  { name: "Key", icon: Key },
+  { name: "EyeOff", icon: EyeOff },
+  { name: "Briefcase", icon: Briefcase },
+  { name: "CreditCard", icon: CreditCard },
+  { name: "DollarSign", icon: DollarSign },
+  { name: "PieChart", icon: PieChart },
+  { name: "TrendingUp", icon: TrendingUp },
+  { name: "HardDrive", icon: HardDrive },
   { name: "Cpu", icon: Cpu },
-  { name: "Layers", icon: Layers }
+  { name: "CheckCircle2", icon: CheckCircle2 },
+  { name: "AlertTriangle", icon: AlertTriangle },
+  { name: "Info", icon: Info },
+  { name: "HelpCircle", icon: HelpCircle },
+  { name: "Trash", icon: Trash },
+  { name: "Edit", icon: Edit },
+  { name: "Save", icon: Save },
+  { name: "Send", icon: Send }
 ];
 
 const PartnersPage = () => {
@@ -266,10 +314,10 @@ const PartnersPage = () => {
 
       {/* ── MODAL ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-3 sm:p-4 bg-black/95 backdrop-blur-md overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex justify-center bg-black/95 backdrop-blur-md overflow-y-auto">
           <form
             onSubmit={handleSubmit}
-            className="bg-slate-900 border border-cyan-500/30 w-full max-w-3xl rounded-3xl sm:rounded-[3rem] p-5 sm:p-8 md:p-10 space-y-6 sm:space-y-8 animate-in zoom-in-95 my-4 sm:my-0"
+            className="relative mt-6 mb-6 bg-slate-900 border border-cyan-500/30 w-full max-w-3xl rounded-3xl sm:rounded-[3rem] p-5 sm:p-8 md:p-10 space-y-6 sm:space-y-8 animate-in zoom-in-95 max-h-[calc(100vh-3rem)] overflow-y-auto"
           >
             {/* Modal header */}
             <div className="flex justify-between items-start gap-4 border-b border-slate-800 pb-5 sm:pb-6">
@@ -389,17 +437,29 @@ const PartnersPage = () => {
               <div className="space-y-3">
                 {formData.features?.map((feat, i) => (
                   <div key={i} className="flex gap-2 sm:gap-3 items-center animate-in slide-in-from-right-2">
-                    <select
-                      className="bg-black border border-slate-800 p-3 sm:p-4 rounded-xl text-[10px] font-bold uppercase outline-none focus:border-cyan-500 cursor-pointer text-white flex-shrink-0"
-                      value={feat.icon}
-                      onChange={e => {
-                        const f = [...formData.features];
-                        f[i].icon = e.target.value;
-                        setFormData({ ...formData, features: f });
-                      }}
-                    >
-                      {iconOptions.map(opt => <option key={opt.name} value={opt.name}>{opt.name}</option>)}
-                    </select>
+                    <div className="flex items-center gap-2 bg-black border border-slate-800 rounded-xl px-3">
+                      {iconMap[feat.icon] && (
+                        <span className="text-cyan-400 flex-shrink-0">
+                          {React.createElement(iconMap[feat.icon], { size: 16 })}
+                        </span>
+                      )}
+                      <select
+                        className="bg-black py-3 sm:py-4 text-[10px] font-bold uppercase outline-none focus:border-cyan-500 cursor-pointer text-white"
+                        value={feat.icon}
+                        onChange={e => {
+                          const f = [...formData.features];
+                          f[i].icon = e.target.value;
+                          setFormData({ ...formData, features: f });
+                        }}
+                      >
+                        {iconOptions.map(opt => (
+                          <option key={opt.name} value={opt.name}>
+                            {opt.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     <input
                       className="flex-1 min-w-0 bg-black border border-slate-800 p-3 sm:p-4 rounded-xl text-xs sm:text-sm outline-none focus:border-cyan-500 text-white"
                       placeholder="Module Capability"
@@ -410,7 +470,12 @@ const PartnersPage = () => {
                         setFormData({ ...formData, features: f });
                       }}
                     />
-                    <button type="button" onClick={() => removeFeature(i)} className="p-3 text-slate-600 hover:text-red-500 transition-colors flex-shrink-0">
+
+                    <button
+                      type="button"
+                      onClick={() => removeFeature(i)}
+                      className="p-3 text-slate-600 hover:text-red-500 transition-colors flex-shrink-0"
+                    >
                       <X size={16} />
                     </button>
                   </div>
