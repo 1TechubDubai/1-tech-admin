@@ -46,6 +46,7 @@ const Navbar = () => {
         { name: "IAM", path: "/", icon: <ShieldCheck className="w-4 h-4" /> },
         { name: "Messages", path: "/messages", icon: <MessageSquare className="w-4 h-4" /> },
         { name: "Partners", path: "/partners", icon: <Users className="w-4 h-4" /> },
+        { name: "Blogs", path: "/blogs", icon: <Layers className="w-4 h-4" /> }
       ]
     : [
         // Give standard members a link to their deployment form
@@ -189,4 +190,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;
+export default Navbar;        

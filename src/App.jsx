@@ -6,6 +6,7 @@ import PartnersPage from "./pages/partners";
 import IAMPage from "./pages/iam";
 import AuthPage from "./pages/auth";
 import PartnerFormPage from "./pages/partnerForm";
+import BlogsPage from "./pages/blogs";
 
 /**
  * RoleRoute Component
@@ -97,6 +98,15 @@ function App() {
             element={
               <RoleRoute allowedRoles={["Member"]}>
                 <PartnerFormPage />
+              </RoleRoute>
+            }
+          />
+
+          <Route
+            path="blogs"
+            element={
+              <RoleRoute allowedRoles={["Admin", "Lead"]}>
+                <BlogsPage />
               </RoleRoute>
             }
           />
