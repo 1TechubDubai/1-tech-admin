@@ -12,7 +12,8 @@ import {
   ChevronRight, MoreVertical, Layout, Type, Globe, Zap,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading1, Heading2, List, ListOrdered, Quote, Link as LinkIcon,
-  Undo, Redo, Eraser
+  Undo, Redo, Eraser,
+  Archive
 } from "lucide-react";
 import Navbar from "../components/navbar.jsx";
 
@@ -150,7 +151,7 @@ const BlogsPage = () => {
         category: formData.category,
         tags: formData.tags.split(",").map(tag => tag.trim()), 
         featuredImage: imageUrl,
-        authorName: userDetails?.displayName || "System Admin",
+        authorName: userDetails?.fullName || "System Admin",
         authorEmail: userDetails?.email || "admin@system.io",
         authorAvatar: userDetails?.photoURL || "",
         updatedAt: serverTimestamp(),
@@ -261,9 +262,29 @@ const BlogsPage = () => {
                 </div>
                 
                 <div className="flex gap-2">
-                  <button onClick={() => { setEditingId(post.id); setFormData({...post, tags: post.tags.join(", ")}); setIsModalOpen(true); }} className="p-2 bg-slate-800 rounded-lg hover:text-cyan-400 transition-colors"><Edit3 size={14}/></button>
-                  <button onClick={() => handleStatusToggle(post.id, post.status)} className={`p-2 bg-slate-800 rounded-lg hover:text-amber-500 transition-colors`}><Zap size={14}/></button>
-                  <button onClick={() => deleteDoc(doc(db, "blog_posts", post.id))} className="p-2 bg-slate-800 rounded-lg hover:text-red-500 transition-colors"><Trash2 size={14}/></button>
+                  <button 
+                    title="Edit Transmission"
+                    onClick={() => { setEditingId(post.id); setFormData({...post, tags: post.tags.join(", ")}); setIsModalOpen(true); }} 
+                    className="p-2 bg-slate-800 rounded-lg hover:text-cyan-400 transition-colors"
+                  >
+                    <Edit3 size={14}/>
+                  </button>
+                  
+                  <button 
+                    title={post.status === "active" ? "Archive Transmission" : "Publish Transmission"}
+                    onClick={() => handleStatusToggle(post.id, post.status)} 
+                    className="p-2 bg-slate-800 rounded-lg hover:text-amber-500 transition-colors"
+                  >
+                    <Archive size={14}/>
+                  </button>
+                  
+                  <button 
+                    title="Delete Transmission"
+                    onClick={() => deleteDoc(doc(db, "blog_posts", post.id))} 
+                    className="p-2 bg-slate-800 rounded-lg hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={14}/>
+                  </button>
                 </div>
               </div>
             </div>
@@ -303,14 +324,17 @@ const BlogsPage = () => {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Category</label>
                   <select 
-                    className="w-full bg-black border border-slate-800 p-4 rounded-xl text-xs font-bold uppercase outline-none focus:border-cyan-500"
+                    className="w-full bg-black border border-slate-800 py-4 pl-4 pr-12 rounded-xl text-xs font-bold uppercase outline-none focus:border-cyan-500 cursor-pointer appearance-none bg-no-repeat bg-[position:right_1rem_center] bg-[length:16px]"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
                     value={formData.category}
                     onChange={e => setFormData({...formData, category: e.target.value})}
                   >
-                    <option>Tech</option>
-                    <option>Operations</option>
-                    <option>Development</option>
-                    <option>Intelligence</option>
+                    <option value="General">General</option>
+                    <option value="Artificial Intelligence">Artificial Intelligence</option>
+                    <option value="Generative AI">Generative AI</option>
+                    <option value="Software Architecture">Software Architecture</option>
+                    <option value="Autonomous Systems">Autonomous Systems</option>
+                    <option value="Data & Analytics">Data & Analytics</option>
                   </select>
                 </div>
 
@@ -318,7 +342,7 @@ const BlogsPage = () => {
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tags (Comma Separated)</label>
                   <input 
                     className="w-full bg-black border border-slate-800 p-4 rounded-xl text-xs outline-none focus:border-cyan-500" 
-                    placeholder="React, Firebase, UI..." 
+                    placeholder="Tech, AI, Architecture..." 
                     value={formData.tags}
                     onChange={e => setFormData({...formData, tags: e.target.value})}
                   />
@@ -331,7 +355,7 @@ const BlogsPage = () => {
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Article Title</label>
                   <input 
                     required
-                    className="w-full bg-black border border-slate-800 p-4 rounded-xl text-lg font-bold outline-none focus:border-cyan-500" 
+                    className="w-full bg-black border border-slate-800 p-4 rounded-xl text-lg font-bold outline-none focus:border-cyan-500 placeholder:text-slate-600 placeholder:italic" 
                     placeholder="The Future of Autonomous UI..." 
                     value={formData.title}
                     onChange={e => setFormData({...formData, title: e.target.value})}
